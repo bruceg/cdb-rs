@@ -12,6 +12,7 @@ const KEYSIZE: usize = 32;
 
 struct CDB {
     file: fs::File,
+    header: [u8; 2048],
     kloop: u32,
     khash: u32,
     kpos: u32,
@@ -22,9 +23,14 @@ struct CDB {
 }
 
 impl CDB {
-    pub fn new(f: fs::File) -> CDB {
-        CDB{
+    pub fn init(f: fs::File) -> Result<CDB> {
+        let mut buf = [0; 2048];
+        let mut f = f;
+        try!(f.seek(io::SeekFrom::Start(0)));
+        try!(f.read(&mut buf));
+        Ok(CDB {
             file: f,
+            header: buf,
             kloop: 0,
             khash: 0,
             kpos: 0,
@@ -32,7 +38,7 @@ impl CDB {
             hslots: 0,
             dpos: 0,
             dlen: 0,
-        }
+        })
     }
 
     fn read(&mut self, buf: &mut [u8], pos: u32) -> Result<usize> {
@@ -72,22 +78,20 @@ impl CDB {
     }
 
     fn find_next(&mut self, key: &[u8]) -> Result<bool> {
-        let mut buf = [0 as u8; 8];
         if self.kloop == 0 {
-            let mut u = hash(key);
-            try!(self.read(&mut buf, u.wrapping_shl(3) & 2047));
-            self.hslots = uint32_unpack(&buf[4..8]);
+            let u = hash(key);
+            let x = ((u as usize) << 8) & 2047;
+            self.hslots = uint32_unpack(&self.header[x+4..x+8]);
             if self.hslots == 0 {
                 return Ok(false);
             }
-            self.hpos = uint32_unpack(&buf[0..4]);
+            self.hpos = uint32_unpack(&self.header[x..x+4]);
             self.khash = u;
-            u >>= 8;
-            u %= self.hslots;
-            self.kpos = self.hpos + u;
+            self.kpos = self.hpos + ((u >> 8) % self.hslots);
         }
 
         while self.kloop < self.hslots {
+            let mut buf = [0 as u8; 8];
             let kpos = self.kpos;
             try!(self.read(&mut buf, kpos));
             let pos = uint32_unpack(&buf[4..8]);
