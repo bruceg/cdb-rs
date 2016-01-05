@@ -1,0 +1,6 @@
+[package]
+name = "cdb"
+version = "0.1.0"
+authors = ["Bruce Guenter <bruce@untroubled.org>"]
+
+[dependencies]
