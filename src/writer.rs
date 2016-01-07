@@ -2,6 +2,8 @@ use std::fs;
 use std::io;
 use std::io::prelude::*;
 use std::cmp::max;
+use std::path;
+use std::string;
 
 use hash::hash;
 use uint32::*;
@@ -139,5 +141,55 @@ impl CDBMake {
         try!(self.file.write(&header));
         try!(self.file.flush());
         Ok(())
+    }
+}
+
+pub struct CDBWriter {
+    dstname: String,
+    tmpname: String,
+    cdb: CDBMake,
+}
+
+impl CDBWriter {
+
+    pub fn create<P: AsRef<path::Path> + string::ToString>(filename: P) -> Result<CDBWriter> {
+        CDBWriter::with_suffix(filename, "tmp")
+    }
+
+    pub fn with_suffix<P: AsRef<path::Path> + string::ToString>(filename: P, suffix: &str) -> Result<CDBWriter> {
+        let mut tmpname = filename.to_string();
+        tmpname.push('.');
+        tmpname.push_str(suffix);
+        let file = try!(fs::File::create(&tmpname));
+        let cdb = try!(CDBMake::new(file));
+        Ok(CDBWriter {
+            dstname: filename.to_string(),
+            tmpname: tmpname,
+            cdb: cdb,
+        })
+    }
+
+    pub fn add(&mut self, key: &[u8], data: &[u8]) -> Result<()> {
+        self.cdb.add(key, data)
+    }
+
+    pub fn set_permissions(&mut self, perm: fs::Permissions) -> Result<()> {
+        fs::set_permissions(&self.tmpname, perm)
+    }
+
+    pub fn finish(&mut self) -> Result<()> {
+        try!(self.cdb.finish());
+        try!(fs::rename(&self.tmpname, &self.dstname));
+        self.tmpname.clear();
+        Ok(())
+    }
+}
+
+impl Drop for CDBWriter {
+    #[allow(unused_must_use)]
+    fn drop(&mut self) {
+        if self.tmpname.len() > 0 {
+            fs::remove_file(&self.tmpname);
+        }
     }
 }

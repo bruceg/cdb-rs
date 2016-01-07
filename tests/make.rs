@@ -13,8 +13,7 @@ macro_rules! noerr {
 fn test_make() {
     let filename = "tests/make.cdb";
 
-    let file = fs::File::create(filename).unwrap();
-    let mut cdb = cdb::CDBMake::new(file).unwrap();
+    let mut cdb = cdb::CDBWriter::create(filename).unwrap();
     noerr!(cdb.add(b"one", b"Hello"));
     noerr!(cdb.add(b"two", b"Goodbye"));
     noerr!(cdb.add(b"one", b", World!"));
