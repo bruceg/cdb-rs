@@ -2,6 +2,7 @@ use std::fs;
 use std::io;
 use std::io::prelude::*;
 use std::cmp::min;
+use std::path;
 
 use hash::hash;
 use uint32::*;
@@ -16,7 +17,7 @@ pub struct CDB {
 }
 
 impl CDB {
-    pub fn init(f: fs::File) -> Result<CDB> {
+    pub fn new(f: fs::File) -> Result<CDB> {
         let mut buf = [0; 2048];
         let mut f = f;
         try!(f.seek(io::SeekFrom::Start(0)));
@@ -25,6 +26,11 @@ impl CDB {
             file: f,
             header: buf,
         })
+    }
+
+    pub fn open<P: AsRef<path::Path>>(filename: P) -> Result<CDB> {
+        let file = try!(fs::File::open(&filename));
+        CDB::new(file)
     }
 
     fn read(&mut self, buf: &mut [u8], pos: u32) -> Result<usize> {
