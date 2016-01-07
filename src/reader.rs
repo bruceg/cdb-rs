@@ -10,16 +10,9 @@ use uint32::*;
 
 const KEYSIZE: usize = 32;
 
-struct CDB {
+pub struct CDB {
     file: fs::File,
     header: [u8; 2048],
-    kloop: u32,
-    khash: u32,
-    kpos: u32,
-    hpos: u32,
-    hslots: u32,
-    dpos: u32,
-    dlen: u32,
 }
 
 impl CDB {
@@ -31,13 +24,6 @@ impl CDB {
         Ok(CDB {
             file: f,
             header: buf,
-            kloop: 0,
-            khash: 0,
-            kpos: 0,
-            hpos: 0,
-            hslots: 0,
-            dpos: 0,
-            dlen: 0,
         })
     }
 
@@ -54,8 +40,12 @@ impl CDB {
         Ok(read)
     }
 
-    fn find_start(&mut self) {
-        self.kloop = 0;
+    fn hash_table(&self, khash: u32) -> (u32, u32, u32) {
+        let x = ((khash as usize) & 0xff) << 3;
+        let hpos = uint32_unpack(&self.header[x..x+4]);
+        let hslots = uint32_unpack(&self.header[x+4..x+8]);
+        let kpos = if hslots > 0 { hpos + (((khash >> 8) % hslots) << 3) } else { 0 };
+        (hpos, hslots, kpos)
     }
 
     fn match_key(&mut self, key: &[u8], pos: u32) -> Result<bool> {
@@ -77,55 +67,106 @@ impl CDB {
         Ok(true)
     }
 
-    fn find_next(&mut self, key: &[u8]) -> Result<bool> {
-        if self.kloop == 0 {
-            let u = hash(key);
-            let x = ((u as usize) << 8) & 2047;
-            self.hslots = uint32_unpack(&self.header[x+4..x+8]);
-            if self.hslots == 0 {
-                return Ok(false);
-            }
-            self.hpos = uint32_unpack(&self.header[x..x+4]);
-            self.khash = u;
-            self.kpos = self.hpos + ((u >> 8) % self.hslots);
-        }
+    pub fn find(&mut self, key: &[u8]) -> CDBIter {
+        CDBIter::find(self, key)
+    }
+}
 
+pub struct CDBIter<'a> {
+    cdb: &'a mut CDB,
+    key: Vec<u8>,
+    khash: u32,
+    kloop: u32,
+    kpos: u32,
+    hpos: u32,
+    hslots: u32,
+    dpos: u32,
+    dlen: u32,
+}
+
+impl<'a> CDBIter<'a> {
+    fn find(cdb: &'a mut CDB, key: &[u8]) -> CDBIter<'a> {
+        let khash = hash(key);
+        let (hpos, hslots, kpos) = cdb.hash_table(khash);
+
+        CDBIter {
+            cdb: cdb,
+            key: key.into_iter().map(|x| *x).collect(),
+            khash: khash,
+            kloop: 0,
+            kpos: kpos,
+            hpos: hpos,
+            hslots: hslots,
+            dpos: 0,
+            dlen: 0,
+        }
+    }
+
+    fn read_vec(&mut self) -> Result<Vec<u8>> {
+        let mut result = vec![0; self.dlen as usize];
+        try!(self.cdb.read(&mut result[..], self.dpos));
+        Ok(result)
+    }
+}
+
+macro_rules! iter_try {
+    ( $e:expr ) => {
+        match $e {
+            Err(x) => { return Some(Err(x)); },
+            Ok(y) => y
+        }
+    }
+}
+
+impl<'a> Iterator for CDBIter<'a> {
+    type Item = Result<Vec<u8>>;
+    fn next(&mut self) -> Option<Result<Vec<u8>>> {
         while self.kloop < self.hslots {
             let mut buf = [0 as u8; 8];
             let kpos = self.kpos;
-            try!(self.read(&mut buf, kpos));
+            iter_try!(self.cdb.read(&mut buf, kpos));
             let pos = uint32_unpack(&buf[4..8]);
+            let khash = uint32_unpack(&buf[0..4]);
             if pos == 0 {
-                return Ok(false);
+                return None;
             }
             self.kloop += 1;
             self.kpos += 8;
             if self.kpos == self.hpos + (self.hslots << 3) {
                 self.kpos = self.hpos;
             }
-            let u = uint32_unpack(&buf[0..4]);
-            if u == self.khash {
-                try!(self.read(&mut buf, pos));
-                let u = uint32_unpack(&buf[0..4]);
-                if u as usize == key.len() {
-                    if try!(self.match_key(key, pos + 8)) {
+            if khash == self.khash {
+                iter_try!(self.cdb.read(&mut buf, pos));
+                let klen = uint32_unpack(&buf[0..4]);
+                if klen as usize == self.key.len() {
+                    if iter_try!(self.cdb.match_key(&self.key[..], pos + 8)) {
                         self.dlen = uint32_unpack(&buf[4..8]);
-                        self.dpos = pos + 8 + key.len() as u32; // FIXME usize vs u32
-                        return Ok(true);
+                        self.dpos = pos + 8 + self.key.len() as u32;
+                        return Some(self.read_vec());
                     }
                 }
             }
         }
-        Ok(false)
-    }
-
-    fn find(&mut self, key: &[u8]) -> Result<bool> {
-        self.find_start();
-        return self.find_next(key);
+        None
     }
 }
 
-impl Drop for CDB {
-    fn drop(&mut self) {
-    }
+#[test]
+fn test_one() {
+    //let test1[u8] = include_bytes!("tests/test1.cdb");
+    let f = fs::File::open("tests/test1.cdb").unwrap();
+    let mut cdb = CDB::init(f).unwrap();
+    let mut i = cdb.find(b"one");
+    assert_eq!(i.next().unwrap().unwrap(), b"Hello");
+    assert_eq!(i.next().unwrap().unwrap(), b", World!");
+}
+
+
+#[test]
+fn test_two() {
+    //let test1[u8] = include_bytes!("tests/test1.cdb");
+    let f = fs::File::open("tests/test1.cdb").unwrap();
+    let mut cdb = CDB::init(f).unwrap();
+    assert_eq!(cdb.find(b"two").next().unwrap().unwrap(), b"Goodbye");
+    assert_eq!(cdb.find(b"this key will be split across two reads").next().unwrap().unwrap(), b"Got it.");
 }
