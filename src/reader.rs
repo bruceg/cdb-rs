@@ -1,12 +1,12 @@
 use std::fs;
 use std::io;
-use std::io::Seek;
-use std::io::Read;
+use std::io::prelude::*;
 use std::cmp::min;
-pub use std::io::Result;
 
 use hash::hash;
 use uint32::*;
+
+pub use std::io::Result;
 
 const KEYSIZE: usize = 32;
 
@@ -33,9 +33,12 @@ impl CDB {
         let mut read = 0;
         while len > 0 {
             let r = try!(self.file.read(&mut buf[read..]));
+            if r == 0 {
+                // Should use ErrorKind::UnexpectedEOF, but it's still unstable
+                return Err(io::Error::new(io::ErrorKind::Other, "Invalid file format"));
+            }
             len -= r;
             read += r;
-            // FIXME: Handle r == 0 -> EPROTO
         }
         Ok(read)
     }
