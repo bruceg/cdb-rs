@@ -157,11 +157,16 @@ impl CDBWriter {
         let mut tmpname = filename.to_string();
         tmpname.push('.');
         tmpname.push_str(suffix);
+        CDBWriter::with_filenames(filename, &tmpname)
+    }
+
+    pub fn with_filenames<P: AsRef<path::Path> + string::ToString,
+                          Q: AsRef<path::Path> + string::ToString>(filename: P, tmpname: Q) -> Result<CDBWriter> {
         let file = try!(fs::File::create(&tmpname));
         let cdb = try!(CDBMake::new(file));
         Ok(CDBWriter {
             dstname: filename.to_string(),
-            tmpname: tmpname,
+            tmpname: tmpname.to_string(),
             cdb: cdb,
         })
     }
