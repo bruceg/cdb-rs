@@ -13,18 +13,28 @@ const KEYSIZE: usize = 32;
 
 pub struct CDB {
     file: fs::File,
+    size: usize,
     header: [u8; 2048],
+}
+
+fn err_badfile<T>() -> Result<T> {
+    Err(io::Error::new(io::ErrorKind::Other, "Invalid file format"))
 }
 
 impl CDB {
     pub fn new(f: fs::File) -> Result<CDB> {
         let mut buf = [0; 2048];
         let mut f = f;
+        let meta = try!(f.metadata());
+        if meta.len() < 2048 + 8 + 8 || meta.len() > 0xffffffff {
+            return err_badfile();
+        }
         try!(f.seek(io::SeekFrom::Start(0)));
         try!(f.read(&mut buf));
         Ok(CDB {
             file: f,
             header: buf,
+            size: meta.len() as usize,
         })
     }
 
@@ -34,15 +44,14 @@ impl CDB {
     }
 
     fn read(&mut self, buf: &mut [u8], pos: u32) -> Result<usize> {
+        if pos as usize + buf.len() > self.size {
+            return err_badfile();
+        }
         try!(self.file.seek(io::SeekFrom::Start(pos as u64)));
         let mut len = buf.len();
         let mut read = 0;
         while len > 0 {
             let r = try!(self.file.read(&mut buf[read..]));
-            if r == 0 {
-                // Should use ErrorKind::UnexpectedEOF, but it's still unstable
-                return Err(io::Error::new(io::ErrorKind::Other, "Invalid file format"));
-            }
             len -= r;
             read += r;
         }
