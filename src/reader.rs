@@ -14,6 +14,7 @@ const KEYSIZE: usize = 32;
 pub struct CDB {
     file: fs::File,
     size: usize,
+    pos: u32,
     header: [u8; 2048],
 }
 
@@ -34,6 +35,7 @@ impl CDB {
         Ok(CDB {
             file: f,
             header: buf,
+            pos: 2048,
             size: meta.len() as usize,
         })
     }
@@ -47,7 +49,9 @@ impl CDB {
         if pos as usize + buf.len() > self.size {
             return err_badfile();
         }
-        try!(self.file.seek(io::SeekFrom::Start(pos as u64)));
+        if pos != self.pos {
+            try!(self.file.seek(io::SeekFrom::Start(pos as u64)));
+        }
         let mut len = buf.len();
         let mut read = 0;
         while len > 0 {
@@ -55,6 +59,7 @@ impl CDB {
             len -= r;
             read += r;
         }
+        self.pos = pos + buf.len() as u32;
         Ok(read)
     }
 
