@@ -21,10 +21,6 @@ fn err_badfile<T>() -> Result<T> {
     Err(io::Error::new(io::ErrorKind::Other, "Invalid file format"))
 }
 
-fn uint32_unpack2(buf: &[u8]) -> (u32, u32) {
-    (uint32_unpack(&buf[0..4]), uint32_unpack(&buf[4..8]))
-}
-
 impl CDB {
     pub fn new(f: fs::File) -> Result<CDB> {
         let mut buf = [0; 2048];

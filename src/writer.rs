@@ -21,8 +21,7 @@ fn err_toobig<T>() -> Result<T> {
 }
 
 fn uint32_pack_hp(buf: &mut [u8], hp: &HashPos) {
-    uint32_pack(&mut buf[0..4], hp.hash);
-    uint32_pack(&mut buf[4..8], hp.pos);
+    uint32_pack2(buf, hp.hash, hp.pos);
 }
 
 pub struct CDBMake {
@@ -63,8 +62,7 @@ impl CDBMake {
 
     fn add_begin(&mut self, keylen: u32, datalen: u32) -> Result<()> {
         let mut buf = [0; 8];
-        uint32_pack(&mut buf[0..4], keylen);
-        uint32_pack(&mut buf[4..8], datalen);
+        uint32_pack2(&mut buf[0..8], keylen, datalen);
         try!(self.file.write(&buf));
         Ok(())
     }
@@ -113,8 +111,7 @@ impl CDBMake {
         for i in 0..256 {
             let len = count[i] * 2;
             let j = i * 8;
-            uint32_pack(&mut header[j+0..j+4], self.pos);
-            uint32_pack(&mut header[j+4..j+8], len);
+            uint32_pack2(&mut header[j..j+8], self.pos, len);
 
             let mut hp = start[i];
             for _ in 0..count[i] {
