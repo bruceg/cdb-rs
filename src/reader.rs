@@ -21,6 +21,10 @@ fn err_badfile<T>() -> Result<T> {
     Err(io::Error::new(io::ErrorKind::Other, "Invalid file format"))
 }
 
+fn uint32_unpack2(buf: &[u8]) -> (u32, u32) {
+    (uint32_unpack(&buf[0..4]), uint32_unpack(&buf[4..8]))
+}
+
 impl CDB {
     pub fn new(f: fs::File) -> Result<CDB> {
         let mut buf = [0; 2048];
@@ -60,8 +64,7 @@ impl CDB {
 
     fn hash_table(&self, khash: u32) -> (u32, u32, u32) {
         let x = ((khash as usize) & 0xff) << 3;
-        let hpos = uint32_unpack(&self.header[x..x+4]);
-        let hslots = uint32_unpack(&self.header[x+4..x+8]);
+        let (hpos, hslots) = uint32_unpack2(&self.header[x..x+8]);
         let kpos = if hslots > 0 { hpos + (((khash >> 8) % hslots) << 3) } else { 0 };
         (hpos, hslots, kpos)
     }
@@ -143,8 +146,7 @@ impl<'a> Iterator for CDBIter<'a> {
             let mut buf = [0 as u8; 8];
             let kpos = self.kpos;
             iter_try!(self.cdb.read(&mut buf, kpos));
-            let pos = uint32_unpack(&buf[4..8]);
-            let khash = uint32_unpack(&buf[0..4]);
+            let (khash, pos) = uint32_unpack2(&buf);
             if pos == 0 {
                 return None;
             }
@@ -155,10 +157,10 @@ impl<'a> Iterator for CDBIter<'a> {
             }
             if khash == self.khash {
                 iter_try!(self.cdb.read(&mut buf, pos));
-                let klen = uint32_unpack(&buf[0..4]);
+                let (klen, dlen) = uint32_unpack2(&buf);
                 if klen as usize == self.key.len() {
                     if iter_try!(self.cdb.match_key(&self.key[..], pos + 8)) {
-                        self.dlen = uint32_unpack(&buf[4..8]);
+                        self.dlen = dlen;
                         self.dpos = pos + 8 + self.key.len() as u32;
                         return Some(self.read_vec());
                     }
