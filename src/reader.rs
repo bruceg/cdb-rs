@@ -1,8 +1,13 @@
+extern crate libc;
+extern crate mmap;
+
 use std::fs;
 use std::io;
 use std::io::prelude::*;
 use std::cmp::min;
 use std::path;
+use std::ptr;
+use std::slice;
 
 use hash::hash;
 use uint32::*;
@@ -14,6 +19,7 @@ const KEYSIZE: usize = 32;
 pub struct CDB {
     file: fs::File,
     size: usize,
+    mmap: Option<mmap::MemoryMap>,
     header: [u8; 2048],
 }
 
@@ -25,6 +31,30 @@ fn uint32_unpack2(buf: &[u8]) -> (u32, u32) {
     (uint32_unpack(&buf[0..4]), uint32_unpack(&buf[4..8]))
 }
 
+#[cfg(unix)]
+use std::os::unix::io::AsRawFd;
+
+#[cfg(unix)]
+fn get_fd(file: &fs::File) -> libc::c_int {
+    file.as_raw_fd()
+}
+
+#[cfg(windows)]
+fn get_fd(file: &fs::File) -> libc::HANDLE {
+    file.as_raw_handle()
+}
+
+fn mmap_file(file: &fs::File, len: usize) -> Result<mmap::MemoryMap> {
+    let fd = get_fd(file);
+    match mmap::MemoryMap::new(len, &[
+        mmap::MapOption::MapReadable,
+        mmap::MapOption::MapFd(fd),
+        ]) {
+        Err(_) => Err(io::Error::new(io::ErrorKind::Other, "mmap failed")),
+        Ok(x) => Ok(x),
+    }
+}
+
 impl CDB {
     pub fn new(f: fs::File) -> Result<CDB> {
         let mut buf = [0; 2048];
@@ -33,12 +63,19 @@ impl CDB {
         if meta.len() < 2048 + 8 + 8 || meta.len() > 0xffffffff {
             return err_badfile();
         }
-        try!(f.seek(io::SeekFrom::Start(0)));
-        try!(f.read(&mut buf));
+        let map = if let Ok(m) = mmap_file(&f, meta.len() as usize) {
+            Some(m)
+        }
+        else {
+            try!(f.seek(io::SeekFrom::Start(0)));
+            try!(f.read(&mut buf));
+            None
+        };
         Ok(CDB {
             file: f,
             header: buf,
             size: meta.len() as usize,
+            mmap: map,
         })
     }
 
@@ -51,20 +88,34 @@ impl CDB {
         if pos as usize + buf.len() > self.size {
             return err_badfile();
         }
-        try!(self.file.seek(io::SeekFrom::Start(pos as u64)));
-        let mut len = buf.len();
-        let mut read = 0;
-        while len > 0 {
-            let r = try!(self.file.read(&mut buf[read..]));
-            len -= r;
-            read += r;
+        if let Some(ref map) = self.mmap {
+            unsafe {
+                ptr::copy_nonoverlapping(map.data().offset(pos as isize), buf.as_mut_ptr(), buf.len());
+            }
+            Ok(buf.len())
         }
-        Ok(read)
+        else {
+            try!(self.file.seek(io::SeekFrom::Start(pos as u64)));
+            let mut len = buf.len();
+            let mut read = 0;
+            while len > 0 {
+                let r = try!(self.file.read(&mut buf[read..]));
+                len -= r;
+                read += r;
+            }
+            Ok(read)
+        }
     }
 
     fn hash_table(&self, khash: u32) -> (u32, u32, u32) {
         let x = ((khash as usize) & 0xff) << 3;
-        let (hpos, hslots) = uint32_unpack2(&self.header[x..x+8]);
+        let (hpos, hslots) = if let Some(ref map) = self.mmap {
+            let s = unsafe { slice::from_raw_parts(map.data(), 2048) };
+            uint32_unpack2(&s[x..x+8])
+        }
+        else {
+            uint32_unpack2(&self.header[x..x+8])
+        };
         let kpos = if hslots > 0 { hpos + (((khash >> 8) % hslots) << 3) } else { 0 };
         (hpos, hslots, kpos)
     }
