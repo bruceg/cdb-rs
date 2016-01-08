@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["Bruce Guenter <bruce@untroubled.org>"]
 
 [dependencies]
+libc = "0.2.4"
+mmap = "0.1.1"
