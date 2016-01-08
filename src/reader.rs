@@ -12,7 +12,7 @@ pub use std::io::Result;
 const KEYSIZE: usize = 32;
 
 pub struct CDB {
-    file: fs::File,
+    file: io::BufReader<fs::File>,
     size: usize,
     pos: u32,
     header: [u8; 2048],
@@ -25,8 +25,8 @@ fn err_badfile<T>() -> Result<T> {
 impl CDB {
     pub fn new(f: fs::File) -> Result<CDB> {
         let mut buf = [0; 2048];
-        let mut f = f;
         let meta = try!(f.metadata());
+        let mut f = io::BufReader::new(f);
         if meta.len() < 2048 + 8 + 8 || meta.len() > 0xffffffff {
             return err_badfile();
         }
