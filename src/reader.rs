@@ -16,6 +16,7 @@ pub use std::io::Result;
 
 const KEYSIZE: usize = 32;
 
+/// CDB file reader
 pub struct CDB {
     file: io::BufReader<fs::File>,
     size: usize,
@@ -53,6 +54,17 @@ fn mmap_file(file: &fs::File, len: usize) -> Result<mmap::MemoryMap> {
 }
 
 impl CDB {
+
+    /// Constructs a new CDB reader from an already opened file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::fs;
+    ///
+    /// let file = fs::File::open("tests/test1.cdb").unwrap();
+    /// let cdb = cdb::CDB::new(file).unwrap();
+    /// ```
     pub fn new(f: fs::File) -> Result<CDB> {
         let mut buf = [0; 2048];
         let meta = try!(f.metadata());
@@ -77,6 +89,13 @@ impl CDB {
         })
     }
 
+    /// Constructs a new CDB by opening a file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let cdb = cdb::CDB::open("tests/test1.cdb").unwrap();
+    /// ```
     pub fn open<P: AsRef<path::Path>>(filename: P) -> Result<CDB> {
         let file = try!(fs::File::open(&filename));
         CDB::new(file)
@@ -139,6 +158,17 @@ impl CDB {
         Ok(true)
     }
 
+    /// Find all records with the named key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut cdb = cdb::CDB::open("tests/test1.cdb").unwrap();
+    ///
+    /// for result in cdb.find(b"one") {
+    ///     println!("{:?}", result.unwrap());
+    /// }
+    /// ```
     pub fn find(&mut self, key: &[u8]) -> CDBIter {
         CDBIter::find(self, key)
     }

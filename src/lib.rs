@@ -4,5 +4,5 @@ mod reader;
 mod writer;
 
 pub use hash::hash;
-pub use reader::{CDB, Result};
+pub use reader::{CDB, CDBIter, Result};
 pub use writer::{CDBMake, CDBWriter};

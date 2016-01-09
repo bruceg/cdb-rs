@@ -24,6 +24,7 @@ fn uint32_pack_hp(buf: &mut [u8], hp: &HashPos) {
     uint32_pack2(buf, hp.hash, hp.pos);
 }
 
+/// Base interface for making a CDB file.
 pub struct CDBMake {
     entries: Vec<HashPos>,
     pos: u32,
@@ -31,9 +32,12 @@ pub struct CDBMake {
 }
 
 impl CDBMake {
+
+    /// Create a new CDB maker.
     pub fn new(file: fs::File) -> Result<CDBMake> {
         let mut w = io::BufWriter::new(file);
         let buf = [0; 2048];
+        try!(w.seek(io::SeekFrom::Start(0)));
         try!(w.write(&buf));
         Ok(CDBMake{
             entries: Vec::new(),
@@ -67,6 +71,7 @@ impl CDBMake {
         Ok(())
     }
 
+    /// Add a record to the CDB file.
     pub fn add(&mut self, key: &[u8], data: &[u8]) -> Result<()> {
         if key.len() >= 0xffffffff || data.len() >= 0xffffffff {
             return Err(io::Error::new(io::ErrorKind::Other, "Key or data too big"));
@@ -77,6 +82,7 @@ impl CDBMake {
         self.add_end(key.len() as u32, data.len() as u32, hash(&key[..]))
     }
 
+    /// Finish writing to the CDB file and flush its contents.
     pub fn finish(&mut self) -> Result<()> {
         let mut buf = [0; 8];
 
@@ -141,6 +147,13 @@ impl CDBMake {
     }
 }
 
+/// A CDB file writer which handles atomic updating.
+///
+/// Using this type, a CDB file is safely written by first creating a
+/// temporary file, building the CDB structure into that temporary file,
+/// and finally renaming that temporary file over the final file name.
+/// If the temporary file is not properly finished (ie due to an error),
+/// the temporary file is deleted when this writer is dropped.
 pub struct CDBWriter {
     dstname: String,
     tmpname: String,
@@ -149,17 +162,24 @@ pub struct CDBWriter {
 
 impl CDBWriter {
 
+    /// Safely create a new CDB file.
+    ///
+    /// The suffix for the temporary file defaults to `".tmp"`.
     pub fn create<P: AsRef<path::Path> + string::ToString>(filename: P) -> Result<CDBWriter> {
-        CDBWriter::with_suffix(filename, "tmp")
+        CDBWriter::with_suffix(filename, ".tmp")
     }
 
+    /// Safely create a new CDB file, using a specific suffix for the temporary file.
     pub fn with_suffix<P: AsRef<path::Path> + string::ToString>(filename: P, suffix: &str) -> Result<CDBWriter> {
         let mut tmpname = filename.to_string();
-        tmpname.push('.');
         tmpname.push_str(suffix);
         CDBWriter::with_filenames(filename, &tmpname)
     }
 
+    /// Safely create a new CDB file, using two specific file names.
+    ///
+    /// Note that the temporary file name must be on the same filesystem
+    /// as the destination, or else the final rename will fail.
     pub fn with_filenames<P: AsRef<path::Path> + string::ToString,
                           Q: AsRef<path::Path> + string::ToString>(filename: P, tmpname: Q) -> Result<CDBWriter> {
         let file = try!(fs::File::create(&tmpname));
@@ -171,11 +191,18 @@ impl CDBWriter {
         })
     }
 
+    /// Add a record to the CDB file.
     pub fn add(&mut self, key: &[u8], data: &[u8]) -> Result<()> {
         self.cdb.add(key, data)
     }
 
+    /// Set permissions on the temporary file.
+    ///
+    /// This must be done before the file is finished, as the temporary
+    /// file will no longer exist at that point.
     pub fn set_permissions(&mut self, perm: fs::Permissions) -> Result<()> {
+        // This should be a method on the file itself to use fchmod, but
+        // Rust doesn't have that yet.
         fs::set_permissions(&self.tmpname, perm)
     }
 
