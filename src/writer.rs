@@ -4,6 +4,7 @@ use std::io::prelude::*;
 use std::cmp::max;
 use std::path;
 use std::string;
+use std::iter;
 
 use hash::hash;
 use uint32::*;
@@ -26,7 +27,7 @@ fn uint32_pack_hp(buf: &mut [u8], hp: &HashPos) {
 
 /// Base interface for making a CDB file.
 pub struct CDBMake {
-    entries: Vec<HashPos>,
+    entries: Vec<Vec<HashPos>>,
     pos: u32,
     file: io::BufWriter<fs::File>,
 }
@@ -40,7 +41,7 @@ impl CDBMake {
         try!(w.seek(io::SeekFrom::Start(0)));
         try!(w.write(&buf));
         Ok(CDBMake{
-            entries: Vec::new(),
+            entries: iter::repeat(vec![]).take(256).collect::<Vec<_>>(),
             pos: 2048,
             file: w,
         })
@@ -57,7 +58,7 @@ impl CDBMake {
     }
 
     fn add_end(&mut self, keylen: u32, datalen: u32, hash: u32) -> Result<()> {
-        self.entries.push(HashPos{ hash: hash, pos: self.pos });
+        self.entries[(hash & 0xff) as usize].push(HashPos{ hash: hash, pos: self.pos });
         try!(self.pos_plus(8));
         try!(self.pos_plus(keylen));
         try!(self.pos_plus(datalen));
@@ -86,56 +87,36 @@ impl CDBMake {
     pub fn finish(&mut self) -> Result<()> {
         let mut buf = [0; 8];
 
-        let mut count = [0 as u32; 256];
-        for e in self.entries.iter() {
-            count[(e.hash & 255) as usize] += 1;
-        }
-
-        let maxsize = count.iter().fold(1, |acc, c| max(acc, c * 2));
-        if maxsize as usize + self.entries.len() > (0xffffffff / 8) {
+        let maxsize = self.entries.iter().fold(1, |acc, e| max(acc, e.len() * 2));
+        let count = self.entries.iter().fold(0, |acc, e| acc + e.len());
+        if maxsize + count > (0xffffffff / 8) {
             return err_toobig();
         }
 
-        let mut start = [0 as u32; 256];
-        let mut u = 0;
-        for i in 0..256 {
-            u += count[i];
-            start[i] = u;
-        }
-
-        let mut split1 = vec![HashPos{ hash: 0, pos: 0 }; self.entries.len()];
-        let mut split2 = vec![HashPos{ hash: 0, pos: 0 }; maxsize as usize];
-
-        // The rev matches the original CDB logic, and outputs the entries in the same order.
-        for e in self.entries.iter().rev() {
-            let h = (e.hash & 255) as usize;
-            start[h] -= 1;
-            split1[start[h] as usize] = *e;
-        }
+        let mut table = vec![HashPos{ hash: 0, pos: 0 }; maxsize];
 
         let mut header = [0 as u8; 2048];
         for i in 0..256 {
-            let len = count[i] * 2;
+            let len = self.entries[i].len() * 2;
             let j = i * 8;
-            uint32_pack2(&mut header[j..j+8], self.pos, len);
+            uint32_pack2(&mut header[j..j+8], self.pos, len as u32);
 
-            let mut hp = start[i];
-            for _ in 0..count[i] {
-                let mut wh = (split1[hp as usize].hash >> 8) % len;
-                while split2[wh as usize].pos > 0 {
+            for e in self.entries[i].iter() {
+                let mut wh = (e.hash as usize >> 8) % len;
+                while table[wh].pos != 0 {
                     wh += 1;
                     if wh == len {
                         wh = 0;
                     }
                 }
-                split2[wh as usize] = split1[hp as usize];
-                hp += 1;
+                table[wh] = *e;
             }
 
-            for hp in split2.iter().take(len as usize) {
+            for hp in table.iter_mut().take(len) {
                 uint32_pack_hp(&mut buf, hp);
                 try!(self.file.write(&buf));
                 try!(self.pos_plus(8));
+                *hp = HashPos{ hash: 0, pos: 0 };
             }
         }
 
