@@ -91,9 +91,8 @@ impl CDBMake {
             count[(e.hash & 255) as usize] += 1;
         }
 
-        let mut memsize = count.iter().fold(1, |acc, c| max(acc, c * 2));
-        memsize += self.entries.len() as u32;
-        if memsize > (0xffffffff / 8) {
+        let maxsize = count.iter().fold(1, |acc, c| max(acc, c * 2));
+        if maxsize as usize + self.entries.len() > (0xffffffff / 8) {
             return err_toobig();
         }
 
@@ -104,13 +103,14 @@ impl CDBMake {
             start[i] = u;
         }
 
-        let mut split = vec![HashPos{ hash: 0, pos: 0 }; memsize as usize];
+        let mut split1 = vec![HashPos{ hash: 0, pos: 0 }; self.entries.len()];
+        let mut split2 = vec![HashPos{ hash: 0, pos: 0 }; maxsize as usize];
 
         // The rev matches the original CDB logic, and outputs the entries in the same order.
         for e in self.entries.iter().rev() {
             let h = (e.hash & 255) as usize;
             start[h] -= 1;
-            split[start[h] as usize] = *e;
+            split1[start[h] as usize] = *e;
         }
 
         let mut header = [0 as u8; 2048];
@@ -121,19 +121,19 @@ impl CDBMake {
 
             let mut hp = start[i];
             for _ in 0..count[i] {
-                let mut wh = (split[hp as usize].hash >> 8) % len;
-                while split[wh as usize + self.entries.len()].pos > 0 {
+                let mut wh = (split1[hp as usize].hash >> 8) % len;
+                while split2[wh as usize].pos > 0 {
                     wh += 1;
                     if wh == len {
                         wh = 0;
                     }
                 }
-                split[wh as usize + self.entries.len()] = split[hp as usize];
+                split2[wh as usize] = split1[hp as usize];
                 hp += 1;
             }
 
-            for u in 0..len {
-                uint32_pack_hp(&mut buf, &split[u as usize + self.entries.len()]);
+            for hp in split2.iter().take(len as usize) {
+                uint32_pack_hp(&mut buf, hp);
                 try!(self.file.write(&buf));
                 try!(self.pos_plus(8));
             }
