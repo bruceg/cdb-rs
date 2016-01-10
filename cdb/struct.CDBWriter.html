@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `CDBWriter` struct in crate `cdb`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, CDBWriter">
+
+    <title>cdb::CDBWriter - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>cdb</a></p><script>window.sidebarCurrent = {name: 'CDBWriter', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>cdb</a>::<wbr><a class='struct' href=''>CDBWriter</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-2122' class='srclink' href='../src/cdb/writer.rs.html#138-142' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct CDBWriter {
+    // some fields omitted
+}</pre><div class='docblock'><p>A CDB file writer which handles atomic updating.</p>
+
+<p>Using this type, a CDB file is safely written by first creating a
+temporary file, building the CDB structure into that temporary file,
+and finally renaming that temporary file over the final file name.
+If the temporary file is not properly finished (ie due to an error),
+the temporary file is deleted when this writer is dropped.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl <a class='struct' href='../cdb/struct.CDBWriter.html' title='cdb::CDBWriter'>CDBWriter</a></code></h3><div class='impl-items'><h4 id='method.create' class='method'><code>fn <a href='#method.create' class='fnname'>create</a>&lt;P: <a class='trait' href='https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html' title='core::convert::AsRef'>AsRef</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/path/struct.Path.html' title='std::path::Path'>Path</a>&gt; + <a class='trait' href='https://doc.rust-lang.org/nightly/collections/string/trait.ToString.html' title='collections::string::ToString'>ToString</a>&gt;(filename: P) -&gt; <a class='type' href='../cdb/type.Result.html' title='cdb::Result'>Result</a>&lt;<a class='struct' href='../cdb/struct.CDBWriter.html' title='cdb::CDBWriter'>CDBWriter</a>&gt;</code></h4>
+<div class='docblock'><p>Safely create a new CDB file.</p>
+
+<p>The suffix for the temporary file defaults to <code>&quot;.tmp&quot;</code>.</p>
+</div><h4 id='method.with_suffix' class='method'><code>fn <a href='#method.with_suffix' class='fnname'>with_suffix</a>&lt;P: <a class='trait' href='https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html' title='core::convert::AsRef'>AsRef</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/path/struct.Path.html' title='std::path::Path'>Path</a>&gt; + <a class='trait' href='https://doc.rust-lang.org/nightly/collections/string/trait.ToString.html' title='collections::string::ToString'>ToString</a>&gt;(filename: P, suffix: &amp;<a href='https://doc.rust-lang.org/nightly/std/primitive.str.html'>str</a>) -&gt; <a class='type' href='../cdb/type.Result.html' title='cdb::Result'>Result</a>&lt;<a class='struct' href='../cdb/struct.CDBWriter.html' title='cdb::CDBWriter'>CDBWriter</a>&gt;</code></h4>
+<div class='docblock'><p>Safely create a new CDB file, using a specific suffix for the temporary file.</p>
+</div><h4 id='method.with_filenames' class='method'><code>fn <a href='#method.with_filenames' class='fnname'>with_filenames</a>&lt;P: <a class='trait' href='https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html' title='core::convert::AsRef'>AsRef</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/path/struct.Path.html' title='std::path::Path'>Path</a>&gt; + <a class='trait' href='https://doc.rust-lang.org/nightly/collections/string/trait.ToString.html' title='collections::string::ToString'>ToString</a>, Q: <a class='trait' href='https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html' title='core::convert::AsRef'>AsRef</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/std/path/struct.Path.html' title='std::path::Path'>Path</a>&gt; + <a class='trait' href='https://doc.rust-lang.org/nightly/collections/string/trait.ToString.html' title='collections::string::ToString'>ToString</a>&gt;(filename: P, tmpname: Q) -&gt; <a class='type' href='../cdb/type.Result.html' title='cdb::Result'>Result</a>&lt;<a class='struct' href='../cdb/struct.CDBWriter.html' title='cdb::CDBWriter'>CDBWriter</a>&gt;</code></h4>
+<div class='docblock'><p>Safely create a new CDB file, using two specific file names.</p>
+
+<p>Note that the temporary file name must be on the same filesystem
+as the destination, or else the final rename will fail.</p>
+</div><h4 id='method.add' class='method'><code>fn <a href='#method.add' class='fnname'>add</a>(&amp;mut self, key: <a href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>, data: <a href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>&amp;[</a><a href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a><a href='https://doc.rust-lang.org/nightly/std/primitive.slice.html'>]</a>) -&gt; <a class='type' href='../cdb/type.Result.html' title='cdb::Result'>Result</a>&lt;<a href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+<div class='docblock'><p>Add a record to the CDB file.</p>
+</div><h4 id='method.set_permissions' class='method'><code>fn <a href='#method.set_permissions' class='fnname'>set_permissions</a>(&amp;mut self, perm: <a class='struct' href='https://doc.rust-lang.org/nightly/std/fs/struct.Permissions.html' title='std::fs::Permissions'>Permissions</a>) -&gt; <a class='type' href='../cdb/type.Result.html' title='cdb::Result'>Result</a>&lt;<a href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+<div class='docblock'><p>Set permissions on the temporary file.</p>
+
+<p>This must be done before the file is finished, as the temporary
+file will no longer exist at that point.</p>
+</div><h4 id='method.finish' class='method'><code>fn <a href='#method.finish' class='fnname'>finish</a>(&amp;mut self) -&gt; <a class='type' href='../cdb/type.Result.html' title='cdb::Result'>Result</a>&lt;<a href='https://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+</div><h2 id='implementations'>Trait Implementations</h2><h3 class='impl'><code>impl <a class='trait' href='https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html' title='core::ops::Drop'>Drop</a> for <a class='struct' href='../cdb/struct.CDBWriter.html' title='cdb::CDBWriter'>CDBWriter</a></code></h3><div class='impl-items'><h4 id='method.drop' class='method'><code>fn <a href='https://doc.rust-lang.org/nightly/core/ops/trait.Drop.html#method.drop' class='fnname'>drop</a>(&amp;mut self)</code></h4>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "cdb";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script async src="../search-index.js"></script>
+</body>
+</html>

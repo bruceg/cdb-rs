@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["CDBMake","Base interface for making a CDB file."],["CDBWriter","A CDB file writer which handles atomic updating."]],"type":[["Result",""]]});

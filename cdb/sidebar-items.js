@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["hash",""]],"struct":[["CDB","CDB file reader"],["CDBIter",""],["CDBMake","Base interface for making a CDB file."],["CDBWriter","A CDB file writer which handles atomic updating."]],"type":[["Result",""]]});

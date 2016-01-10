@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["CDB","CDB file reader"],["CDBIter",""]],"type":[["Result",""]]});
