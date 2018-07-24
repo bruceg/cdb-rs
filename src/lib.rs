@@ -1,4 +1,4 @@
-mod uint32;
+pub mod uint32;
 mod hash;
 mod reader;
 mod writer;

@@ -10,7 +10,7 @@ use std::ptr;
 use std::slice;
 
 use hash::hash;
-use uint32::*;
+use uint32;
 
 pub use std::io::Result;
 
@@ -130,10 +130,10 @@ impl CDB {
         let x = ((khash as usize) & 0xff) << 3;
         let (hpos, hslots) = if let Some(ref map) = self.mmap {
             let s = unsafe { slice::from_raw_parts(map.data(), 2048) };
-            uint32_unpack2(&s[x..x+8])
+            uint32::unpack2(&s[x..x+8])
         }
         else {
-            uint32_unpack2(&self.header[x..x+8])
+            uint32::unpack2(&self.header[x..x+8])
         };
         let kpos = if hslots > 0 { hpos + (((khash >> 8) % hslots) << 3) } else { 0 };
         (hpos, hslots, kpos)
@@ -227,7 +227,7 @@ impl<'a> Iterator for CDBIter<'a> {
             let mut buf = [0 as u8; 8];
             let kpos = self.kpos;
             iter_try!(self.cdb.read(&mut buf, kpos));
-            let (khash, pos) = uint32_unpack2(&buf);
+            let (khash, pos) = uint32::unpack2(&buf);
             if pos == 0 {
                 return None;
             }
@@ -238,7 +238,7 @@ impl<'a> Iterator for CDBIter<'a> {
             }
             if khash == self.khash {
                 iter_try!(self.cdb.read(&mut buf, pos));
-                let (klen, dlen) = uint32_unpack2(&buf);
+                let (klen, dlen) = uint32::unpack2(&buf);
                 if klen as usize == self.key.len() {
                     if iter_try!(self.cdb.match_key(&self.key[..], pos + 8)) {
                         self.dlen = dlen;

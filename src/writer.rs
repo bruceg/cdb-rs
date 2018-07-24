@@ -7,7 +7,7 @@ use std::string;
 use std::iter;
 
 use hash::hash;
-use uint32::*;
+use uint32;
 
 pub use std::io::Result;
 
@@ -19,7 +19,7 @@ struct HashPos {
 
 impl HashPos {
     fn pack(&self, buf: &mut [u8]) {
-        uint32_pack2(buf, self.hash, self.pos);
+        uint32::pack2(buf, self.hash, self.pos);
     }
 }
 
@@ -69,7 +69,7 @@ impl CDBMake {
 
     fn add_begin(&mut self, keylen: u32, datalen: u32) -> Result<()> {
         let mut buf = [0; 8];
-        uint32_pack2(&mut buf[0..8], keylen, datalen);
+        uint32::pack2(&mut buf[0..8], keylen, datalen);
         try!(self.file.write(&buf));
         Ok(())
     }
@@ -101,7 +101,7 @@ impl CDBMake {
         for i in 0..256 {
             let len = self.entries[i].len() * 2;
             let j = i * 8;
-            uint32_pack2(&mut header[j..j+8], self.pos, len as u32);
+            uint32::pack2(&mut header[j..j+8], self.pos, len as u32);
 
             for e in self.entries[i].iter() {
                 let mut wh = (e.hash as usize >> 8) % len;
