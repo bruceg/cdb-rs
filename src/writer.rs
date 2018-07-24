@@ -17,12 +17,14 @@ struct HashPos {
     pos: u32,
 }
 
-fn err_toobig<T>() -> Result<T> {
-    Err(io::Error::new(io::ErrorKind::Other, "File too big"))
+impl HashPos {
+    fn pack(&self, buf: &mut [u8]) {
+        uint32_pack2(buf, self.hash, self.pos);
+    }
 }
 
-fn uint32_pack_hp(buf: &mut [u8], hp: &HashPos) {
-    uint32_pack2(buf, hp.hash, hp.pos);
+fn err_toobig<T>() -> Result<T> {
+    Err(io::Error::new(io::ErrorKind::Other, "File too big"))
 }
 
 /// Base interface for making a CDB file.
@@ -113,7 +115,7 @@ impl CDBMake {
             }
 
             for hp in table.iter_mut().take(len) {
-                uint32_pack_hp(&mut buf, hp);
+                hp.pack(&mut buf);
                 try!(self.file.write(&buf));
                 try!(self.pos_plus(8));
                 *hp = HashPos{ hash: 0, pos: 0 };
