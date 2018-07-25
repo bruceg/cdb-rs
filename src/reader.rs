@@ -55,40 +55,6 @@ fn mmap_file(file: &fs::File, len: usize) -> Result<mmap::MemoryMap> {
 
 impl CDB {
 
-    /// Constructs a new CDB reader from an already opened file.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::fs;
-    ///
-    /// let file = fs::File::open("tests/test1.cdb").unwrap();
-    /// let cdb = cdb::CDB::new(file).unwrap();
-    /// ```
-    pub fn new(f: fs::File) -> Result<CDB> {
-        let mut buf = [0; 2048];
-        let meta = try!(f.metadata());
-        let mut f = io::BufReader::new(f);
-        if meta.len() < 2048 + 8 + 8 || meta.len() > 0xffffffff {
-            return err_badfile();
-        }
-        let map = if let Ok(m) = mmap_file(&f.get_ref(), meta.len() as usize) {
-            Some(m)
-        }
-        else {
-            try!(f.seek(io::SeekFrom::Start(0)));
-            try!(f.read(&mut buf));
-            None
-        };
-        Ok(CDB {
-            file: f,
-            header: buf,
-            pos: 2048,
-            size: meta.len() as usize,
-            mmap: map,
-        })
-    }
-
     /// Constructs a new CDB by opening a file.
     ///
     /// # Examples
@@ -98,7 +64,27 @@ impl CDB {
     /// ```
     pub fn open<P: AsRef<path::Path>>(filename: P) -> Result<CDB> {
         let file = try!(fs::File::open(&filename));
-        CDB::new(file)
+        let mut buf = [0; 2048];
+        let meta = try!(file.metadata());
+        let mut file = io::BufReader::new(file);
+        if meta.len() < 2048 + 8 + 8 || meta.len() > 0xffffffff {
+            return err_badfile();
+        }
+        let map = if let Ok(m) = mmap_file(&file.get_ref(), meta.len() as usize) {
+            Some(m)
+        }
+        else {
+            try!(file.seek(io::SeekFrom::Start(0)));
+            try!(file.read(&mut buf));
+            None
+        };
+        Ok(CDB {
+            file,
+            header: buf,
+            pos: 2048,
+            size: meta.len() as usize,
+            mmap: map,
+        })
     }
 
     fn read(&mut self, buf: &mut [u8], pos: u32) -> Result<usize> {
