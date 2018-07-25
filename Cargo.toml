@@ -13,5 +13,5 @@ exclude = [
 ]
 
 [dependencies]
+filebuffer = "0.4"
 libc = "0.2.4"
-mmap = "0.1.1"

@@ -1,3 +1,5 @@
+extern crate filebuffer;
+
 pub mod uint32;
 mod hash;
 mod reader;

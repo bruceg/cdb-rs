@@ -1,13 +1,7 @@
-extern crate libc;
-extern crate mmap;
-
-use std::fs;
+use filebuffer::FileBuffer;
 use std::io;
-use std::io::prelude::*;
 use std::cmp::min;
 use std::path;
-use std::ptr;
-use std::slice;
 
 use hash::hash;
 use uint32;
@@ -18,39 +12,12 @@ const KEYSIZE: usize = 32;
 
 /// CDB file reader
 pub struct CDB {
-    file: io::BufReader<fs::File>,
+    file: FileBuffer,
     size: usize,
-    pos: u32,
-    mmap: Option<mmap::MemoryMap>,
-    header: [u8; 2048],
 }
 
 fn err_badfile<T>() -> Result<T> {
     Err(io::Error::new(io::ErrorKind::Other, "Invalid file format"))
-}
-
-#[cfg(unix)]
-use std::os::unix::io::AsRawFd;
-
-#[cfg(unix)]
-fn get_fd(file: &fs::File) -> libc::c_int {
-    file.as_raw_fd()
-}
-
-#[cfg(windows)]
-fn get_fd(file: &fs::File) -> libc::HANDLE {
-    file.as_raw_handle()
-}
-
-fn mmap_file(file: &fs::File, len: usize) -> Result<mmap::MemoryMap> {
-    let fd = get_fd(file);
-    match mmap::MemoryMap::new(len, &[
-        mmap::MapOption::MapReadable,
-        mmap::MapOption::MapFd(fd),
-        ]) {
-        Err(_) => Err(io::Error::new(io::ErrorKind::Other, "mmap failed")),
-        Ok(x) => Ok(x),
-    }
 }
 
 impl CDB {
@@ -63,69 +30,35 @@ impl CDB {
     /// let cdb = cdb::CDB::open("tests/test1.cdb").unwrap();
     /// ```
     pub fn open<P: AsRef<path::Path>>(filename: P) -> Result<CDB> {
-        let file = try!(fs::File::open(&filename));
-        let mut buf = [0; 2048];
-        let meta = try!(file.metadata());
-        let mut file = io::BufReader::new(file);
-        if meta.len() < 2048 + 8 + 8 || meta.len() > 0xffffffff {
+        let file = FileBuffer::open(&filename)?;
+        if file.len() < 2048 + 8 + 8 || file.len() > 0xffffffff {
             return err_badfile();
         }
-        let map = if let Ok(m) = mmap_file(&file.get_ref(), meta.len() as usize) {
-            Some(m)
-        }
-        else {
-            try!(file.seek(io::SeekFrom::Start(0)));
-            try!(file.read(&mut buf));
-            None
-        };
+        let size = file.len();
         Ok(CDB {
             file,
-            header: buf,
-            pos: 2048,
-            size: meta.len() as usize,
-            mmap: map,
+            size,
         })
     }
 
-    fn read(&mut self, buf: &mut [u8], pos: u32) -> Result<usize> {
-        if pos as usize + buf.len() > self.size {
+    fn read(&self, buf: &mut [u8], pos: u32) -> Result<usize> {
+        let len = buf.len();
+        let pos = pos as usize;
+        if pos + len > self.size {
             return err_badfile();
         }
-        if let Some(ref map) = self.mmap {
-            unsafe {
-                ptr::copy_nonoverlapping(map.data().offset(pos as isize), buf.as_mut_ptr(), buf.len());
-            }
-            Ok(buf.len())
-        }
-        else {
-            if pos != self.pos {
-                try!(self.file.seek(io::SeekFrom::Start(pos as u64)));
-            }
-            let mut len = buf.len();
-            let mut read = 0;
-            while len > 0 {
-                let r = try!(self.file.read(&mut buf[read..]));
-                len -= r;
-                read += r;
-            }
-            Ok(read)
-        }
+        buf.copy_from_slice(&self.file[pos .. pos + len]);
+        Ok(len)
     }
 
     fn hash_table(&self, khash: u32) -> (u32, u32, u32) {
         let x = ((khash as usize) & 0xff) << 3;
-        let (hpos, hslots) = if let Some(ref map) = self.mmap {
-            let s = unsafe { slice::from_raw_parts(map.data(), 2048) };
-            uint32::unpack2(&s[x..x+8])
-        }
-        else {
-            uint32::unpack2(&self.header[x..x+8])
-        };
+        let (hpos, hslots) = uint32::unpack2(&self.file[x..x+8]);
         let kpos = if hslots > 0 { hpos + (((khash >> 8) % hslots) << 3) } else { 0 };
         (hpos, hslots, kpos)
     }
 
-    fn match_key(&mut self, key: &[u8], pos: u32) -> Result<bool> {
+    fn match_key(&self, key: &[u8], pos: u32) -> Result<bool> {
         let mut buf = [0 as u8; KEYSIZE];
         let mut len = key.len();
         let mut pos = pos;
@@ -155,13 +88,13 @@ impl CDB {
     ///     println!("{:?}", result.unwrap());
     /// }
     /// ```
-    pub fn find(&mut self, key: &[u8]) -> CDBIter {
+    pub fn find(&self, key: &[u8]) -> CDBIter {
         CDBIter::find(self, key)
     }
 }
 
 pub struct CDBIter<'a> {
-    cdb: &'a mut CDB,
+    cdb: &'a CDB,
     key: Vec<u8>,
     khash: u32,
     kloop: u32,
@@ -173,7 +106,7 @@ pub struct CDBIter<'a> {
 }
 
 impl<'a> CDBIter<'a> {
-    fn find(cdb: &'a mut CDB, key: &[u8]) -> CDBIter<'a> {
+    fn find(cdb: &'a CDB, key: &[u8]) -> CDBIter<'a> {
         let khash = hash(key);
         let (hpos, hslots, kpos) = cdb.hash_table(khash);
 
@@ -190,7 +123,7 @@ impl<'a> CDBIter<'a> {
         }
     }
 
-    fn read_vec(&mut self) -> Result<Vec<u8>> {
+    fn read_vec(&self) -> Result<Vec<u8>> {
         let mut result = vec![0; self.dlen as usize];
         try!(self.cdb.read(&mut result[..], self.dpos));
         Ok(result)

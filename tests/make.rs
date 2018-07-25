@@ -20,7 +20,7 @@ fn test_make() {
     noerr!(cdb.add(b"this key will be split across two reads", b"Got it."));
     noerr!(cdb.finish());
 
-    let mut cdb = cdb::CDB::open(filename).unwrap();
+    let cdb = cdb::CDB::open(filename).unwrap();
     assert_eq!(cdb.find(b"two").next().unwrap().unwrap(), b"Goodbye");
     assert_eq!(cdb.find(b"this key will be split across two reads").next().unwrap().unwrap(), b"Got it.");
     let mut i = cdb.find(b"one");
