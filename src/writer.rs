@@ -85,6 +85,11 @@ impl CDBMake {
         self.add_end(key.len() as u32, data.len() as u32, hash(&key[..]))
     }
 
+    /// Set the permissions on the underlying file.
+    pub fn set_permissions(&self, perm: fs::Permissions) -> Result<()> {
+        self.file.get_ref().set_permissions(perm)
+    }
+
     /// Finish writing to the CDB file and flush its contents.
     pub fn finish(mut self) -> Result<()> {
         let mut buf = [0; 8];
