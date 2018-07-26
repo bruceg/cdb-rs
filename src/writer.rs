@@ -190,10 +190,8 @@ impl CDBWriter {
     ///
     /// This must be done before the file is finished, as the temporary
     /// file will no longer exist at that point.
-    pub fn set_permissions(&mut self, perm: fs::Permissions) -> Result<()> {
-        // This should be a method on the file itself to use fchmod, but
-        // Rust doesn't have that yet.
-        fs::set_permissions(&self.tmpname, perm)
+    pub fn set_permissions(&self, perm: fs::Permissions) -> Result<()> {
+        self.cdb.as_ref().unwrap().set_permissions(perm)
     }
 
     pub fn finish(mut self) -> Result<()> {
