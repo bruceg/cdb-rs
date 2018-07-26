@@ -86,7 +86,7 @@ impl CDBMake {
     }
 
     /// Finish writing to the CDB file and flush its contents.
-    pub fn finish(&mut self) -> Result<()> {
+    pub fn finish(mut self) -> Result<()> {
         let mut buf = [0; 8];
 
         let maxsize = self.entries.iter().fold(1, |acc, e| max(acc, e.len() * 2));
@@ -140,7 +140,7 @@ impl CDBMake {
 pub struct CDBWriter {
     dstname: String,
     tmpname: String,
-    cdb: CDBMake,
+    cdb: Option<CDBMake>,
 }
 
 impl CDBWriter {
@@ -170,13 +170,15 @@ impl CDBWriter {
         Ok(CDBWriter {
             dstname: filename.to_string(),
             tmpname: tmpname.to_string(),
-            cdb: cdb,
+            cdb: Some(cdb),
         })
     }
 
     /// Add a record to the CDB file.
     pub fn add(&mut self, key: &[u8], data: &[u8]) -> Result<()> {
-        self.cdb.add(key, data)
+        // The unwrap() is safe here, as the internal cdb is only ever
+        // None during finish(), which does not call this.
+        self.cdb.as_mut().unwrap().add(key, data)
     }
 
     /// Set permissions on the temporary file.
@@ -190,9 +192,8 @@ impl CDBWriter {
     }
 
     pub fn finish(mut self) -> Result<()> {
-        try!(self.cdb.finish());
+        try!(self.cdb.take().unwrap().finish());
         try!(fs::rename(&self.tmpname, &self.dstname));
-        self.tmpname.clear();
         Ok(())
     }
 }
@@ -200,7 +201,7 @@ impl CDBWriter {
 impl Drop for CDBWriter {
     #[allow(unused_must_use)]
     fn drop(&mut self) {
-        if self.tmpname.len() > 0 {
+        if let Some(_) = self.cdb {
             fs::remove_file(&self.tmpname);
         }
     }
