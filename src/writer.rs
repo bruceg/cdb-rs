@@ -189,7 +189,7 @@ impl CDBWriter {
         fs::set_permissions(&self.tmpname, perm)
     }
 
-    pub fn finish(&mut self) -> Result<()> {
+    pub fn finish(mut self) -> Result<()> {
         try!(self.cdb.finish());
         try!(fs::rename(&self.tmpname, &self.dstname));
         self.tmpname.clear();
