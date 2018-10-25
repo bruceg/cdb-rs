@@ -6,7 +6,7 @@ use cdb::CDB;
 use criterion::Criterion;
 
 fn test_cdb() -> CDB {
-    CDB::open("tests/test1.cdb").expect("Could not open tests/test1.cdb")
+    CDB::open("tests/test2.cdb").expect("Could not open tests/test2.cdb")
 }
 
 fn reader_benchmark(c: &mut Criterion) {
