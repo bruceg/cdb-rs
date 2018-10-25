@@ -11,6 +11,16 @@ pub use std::io::Result;
 const KEYSIZE: usize = 32;
 
 /// CDB file reader
+///
+/// # Example
+///
+/// ```
+/// let cdb = cdb::CDB::open("tests/test1.cdb").unwrap();
+///
+/// for result in cdb.find(b"one") {
+///     println!("{:?}", result.unwrap());
+/// }
+/// ```
 pub struct CDB {
     file: FileBuffer,
     size: usize,
@@ -22,7 +32,7 @@ fn err_badfile<T>() -> Result<T> {
 
 impl CDB {
 
-    /// Constructs a new CDB by opening a file.
+    /// Opens the named file and returns the CDB reader.
     ///
     /// # Examples
     ///
@@ -77,7 +87,8 @@ impl CDB {
         Ok(true)
     }
 
-    /// Find all records with the named key.
+    /// Find all records with the named key. The returned iterator
+    /// produces each value associated with the key.
     ///
     /// # Examples
     ///
@@ -93,6 +104,7 @@ impl CDB {
     }
 }
 
+/// Iterator over a set of records in the CDB with the same key.
 pub struct CDBIter<'a> {
     cdb: &'a CDB,
     key: Vec<u8>,

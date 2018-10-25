@@ -28,6 +28,19 @@ fn err_toobig<T>() -> Result<T> {
 }
 
 /// Base interface for making a CDB file.
+///
+/// # Example
+///
+/// ```no_run
+/// fn main() -> std::io::Result<()> {
+///     let file = std::fs::File::create("temporary.cdb")?;
+///     let mut cdb = cdb::CDBMake::new(file)?;
+///     cdb.add(b"one", b"Hello,")?;
+///     cdb.add(b"two", b"world!")?;
+///     cdb.finish()?;
+///     Ok(())
+/// }
+/// ```
 pub struct CDBMake {
     entries: Vec<Vec<HashPos>>,
     pos: u32,
@@ -142,6 +155,19 @@ impl CDBMake {
 /// and finally renaming that temporary file over the final file name.
 /// If the temporary file is not properly finished (ie due to an error),
 /// the temporary file is deleted when this writer is dropped.
+///
+/// # Example
+///
+/// ```no_run
+/// use cdb::CDBWriter;
+///
+/// fn main() -> std::io::Result<()> {
+///     let mut cdb = CDBWriter::create("temporary.cdb")?;
+///     cdb.add(b"one", b"Hello")?;
+///     cdb.finish()?;
+///     Ok(())
+/// }
+/// ```
 pub struct CDBWriter {
     dstname: String,
     tmpname: String,
