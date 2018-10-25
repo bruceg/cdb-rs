@@ -33,6 +33,16 @@ fn reader_benchmark(c: &mut Criterion) {
             result.unwrap();
         }
     }));
+    c.bench_function("CDB::iter result loop", |b| {
+        let cdb = test_cdb();
+        b.iter(|| for result in cdb.iter() { result.unwrap(); })
+    });
+    c.bench_function("CDB::open + iter result loop", |b| b.iter(|| {
+        let cdb = test_cdb();
+        for result in cdb.iter() {
+            result.unwrap();
+        }
+    }));
 }
 
 criterion_group!(benches, reader_benchmark);

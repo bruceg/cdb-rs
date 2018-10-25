@@ -116,11 +116,29 @@ impl CDB {
     pub fn find(&self, key: &[u8]) -> CDBValueIter {
         CDBValueIter::find(self, key)
     }
+
+    /// Iterate over all the `(key, value)` pairs in the database.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let cdb = cdb::CDB::open("tests/test1.cdb").unwrap();
+    /// for result in cdb.iter() {
+    ///     let (key, value) = result.unwrap();
+    ///     println!("{:?} => {:?}", key, value);
+    /// }
+    /// ````
+    pub fn iter(&self) -> CDBKeyValueIter {
+        CDBKeyValueIter::start(&self)
+    }
 }
 
+/// Type alias for [`CDBValueiter`](struct.CDBValueIter.html)
 pub type CDBIter<'a> = CDBValueIter<'a>;
 
 /// Iterator over a set of records in the CDB with the same key.
+///
+/// See [`CDB::find`](struct.CDB.html#method.find)
 pub struct CDBValueIter<'a> {
     cdb: &'a CDB,
     key: Vec<u8>,
@@ -134,7 +152,7 @@ pub struct CDBValueIter<'a> {
 }
 
 impl<'a> CDBValueIter<'a> {
-    fn find(cdb: &'a CDB, key: &[u8]) -> CDBValueIter<'a> {
+    fn find(cdb: &'a CDB, key: &[u8]) -> Self {
         let khash = hash(key);
         let (hpos, hslots, kpos) = cdb.hash_table(khash);
 
@@ -169,7 +187,7 @@ macro_rules! iter_try {
 
 impl<'a> Iterator for CDBValueIter<'a> {
     type Item = Result<Vec<u8>>;
-    fn next(&mut self) -> Option<Result<Vec<u8>>> {
+    fn next(&mut self) -> Option<Self::Item> {
         while self.kloop < self.hslots {
             let mut buf = [0 as u8; 8];
             let kpos = self.kpos;
@@ -196,5 +214,51 @@ impl<'a> Iterator for CDBValueIter<'a> {
             }
         }
         None
+    }
+}
+
+/// Iterator over all the records in the CDB.
+///
+/// See [`CDB::iter`](struct.CDB.html#method.iter)
+pub struct CDBKeyValueIter<'a> {
+    cdb: &'a CDB,
+    pos: u32,
+    data_end: u32,
+}
+
+impl<'a> CDBKeyValueIter<'a> {
+    fn start(cdb: &'a CDB) -> Self {
+        let data_end = uint32::unpack(&cdb.file[0..4]).min(cdb.size as u32);
+        Self {
+            cdb,
+            pos: 2048,
+            data_end,
+        }
+    }
+}
+
+impl<'a> Iterator for CDBKeyValueIter<'a> {
+    type Item = Result<(Vec<u8>, Vec<u8>)>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos + 8 >= self.data_end {
+            None
+        }
+        else {
+            let (klen, dlen) = uint32::unpack2(&self.cdb.file[self.pos as usize..self.pos as usize + 8]);
+            if self.pos + klen + dlen >= self.data_end {
+                Some(err_badfile())
+            }
+            else {
+                let kpos = (self.pos + 8) as usize;
+                let dpos = kpos + klen as usize;
+                let mut key = vec![0; klen as usize];
+                let mut value = vec![0; dlen as usize];
+                // Copied from CDB::read
+                key.copy_from_slice(&self.cdb.file[kpos..kpos+klen as usize]);
+                value.copy_from_slice(&self.cdb.file[dpos..dpos+dlen as usize]);
+                self.pos += 8 + klen + dlen;
+                Some(Ok((key, value)))
+            }
+        }
     }
 }
