@@ -87,13 +87,27 @@ impl CDB {
         Ok(true)
     }
 
+    /// Find the first record with the named key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let cdb = cdb::CDB::open("tests/test1.cdb").unwrap();
+    /// if let Some(record) = cdb.get(b"one") {
+    ///     println!("{:?}", record.unwrap());
+    /// }
+    /// ```
+    pub fn get(&self, key: &[u8]) -> Option<Result<Vec<u8>>> {
+        self.find(key).next()
+    }
+
     /// Find all records with the named key. The returned iterator
     /// produces each value associated with the key.
     ///
     /// # Examples
     ///
     /// ```
-    /// let mut cdb = cdb::CDB::open("tests/test1.cdb").unwrap();
+    /// let cdb = cdb::CDB::open("tests/test1.cdb").unwrap();
     ///
     /// for result in cdb.find(b"one") {
     ///     println!("{:?}", result.unwrap());
