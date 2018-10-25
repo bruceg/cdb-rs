@@ -99,13 +99,15 @@ impl CDB {
     ///     println!("{:?}", result.unwrap());
     /// }
     /// ```
-    pub fn find(&self, key: &[u8]) -> CDBIter {
-        CDBIter::find(self, key)
+    pub fn find(&self, key: &[u8]) -> CDBValueIter {
+        CDBValueIter::find(self, key)
     }
 }
 
+pub type CDBIter<'a> = CDBValueIter<'a>;
+
 /// Iterator over a set of records in the CDB with the same key.
-pub struct CDBIter<'a> {
+pub struct CDBValueIter<'a> {
     cdb: &'a CDB,
     key: Vec<u8>,
     khash: u32,
@@ -117,12 +119,12 @@ pub struct CDBIter<'a> {
     dlen: u32,
 }
 
-impl<'a> CDBIter<'a> {
-    fn find(cdb: &'a CDB, key: &[u8]) -> CDBIter<'a> {
+impl<'a> CDBValueIter<'a> {
+    fn find(cdb: &'a CDB, key: &[u8]) -> CDBValueIter<'a> {
         let khash = hash(key);
         let (hpos, hslots, kpos) = cdb.hash_table(khash);
 
-        CDBIter {
+        CDBValueIter {
             cdb: cdb,
             key: key.into_iter().map(|x| *x).collect(),
             khash: khash,
@@ -151,7 +153,7 @@ macro_rules! iter_try {
     }
 }
 
-impl<'a> Iterator for CDBIter<'a> {
+impl<'a> Iterator for CDBValueIter<'a> {
     type Item = Result<Vec<u8>>;
     fn next(&mut self) -> Option<Result<Vec<u8>>> {
         while self.kloop < self.hslots {

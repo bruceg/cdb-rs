@@ -43,5 +43,5 @@ mod hash;
 mod reader;
 mod writer;
 
-pub use reader::{CDB, CDBIter, Result};
+pub use reader::{CDB, CDBIter, CDBValueIter, Result};
 pub use writer::{CDBMake, CDBWriter};
