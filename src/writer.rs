@@ -53,8 +53,8 @@ impl CDBMake {
     pub fn new(file: fs::File) -> Result<CDBMake> {
         let mut w = io::BufWriter::new(file);
         let buf = [0; 2048];
-        try!(w.seek(io::SeekFrom::Start(0)));
-        try!(w.write(&buf));
+        w.seek(io::SeekFrom::Start(0))?;
+        w.write(&buf)?;
         Ok(CDBMake{
             entries: iter::repeat(vec![]).take(256).collect::<Vec<_>>(),
             pos: 2048,
@@ -74,16 +74,16 @@ impl CDBMake {
 
     fn add_end(&mut self, keylen: u32, datalen: u32, hash: u32) -> Result<()> {
         self.entries[(hash & 0xff) as usize].push(HashPos{ hash: hash, pos: self.pos });
-        try!(self.pos_plus(8));
-        try!(self.pos_plus(keylen));
-        try!(self.pos_plus(datalen));
+        self.pos_plus(8)?;
+        self.pos_plus(keylen)?;
+        self.pos_plus(datalen)?;
         Ok(())
     }
 
     fn add_begin(&mut self, keylen: u32, datalen: u32) -> Result<()> {
         let mut buf = [0; 8];
         uint32::pack2(&mut buf[0..8], keylen, datalen);
-        try!(self.file.write(&buf));
+        self.file.write(&buf)?;
         Ok(())
     }
 
@@ -92,9 +92,9 @@ impl CDBMake {
         if key.len() >= 0xffffffff || data.len() >= 0xffffffff {
             return Err(io::Error::new(io::ErrorKind::Other, "Key or data too big"));
         }
-        try!(self.add_begin(key.len() as u32, data.len() as u32));
-        try!(self.file.write(key));
-        try!(self.file.write(data));
+        self.add_begin(key.len() as u32, data.len() as u32)?;
+        self.file.write(key)?;
+        self.file.write(data)?;
         self.add_end(key.len() as u32, data.len() as u32, hash(&key[..]))
     }
 
@@ -134,16 +134,16 @@ impl CDBMake {
 
             for hp in table.iter_mut().take(len) {
                 hp.pack(&mut buf);
-                try!(self.file.write(&buf));
-                try!(self.pos_plus(8));
+                self.file.write(&buf)?;
+                self.pos_plus(8)?;
                 *hp = HashPos{ hash: 0, pos: 0 };
             }
         }
 
-        try!(self.file.flush());
-        try!(self.file.seek(io::SeekFrom::Start(0)));
-        try!(self.file.write(&header));
-        try!(self.file.flush());
+        self.file.flush()?;
+        self.file.seek(io::SeekFrom::Start(0))?;
+        self.file.write(&header)?;
+        self.file.flush()?;
         Ok(())
     }
 }
@@ -196,8 +196,8 @@ impl CDBWriter {
     /// as the destination, or else the final rename will fail.
     pub fn with_filenames<P: AsRef<path::Path> + string::ToString,
                           Q: AsRef<path::Path> + string::ToString>(filename: P, tmpname: Q) -> Result<CDBWriter> {
-        let file = try!(fs::File::create(&tmpname));
-        let cdb = try!(CDBMake::new(file));
+        let file = fs::File::create(&tmpname)?;
+        let cdb = CDBMake::new(file)?;
         Ok(CDBWriter {
             dstname: filename.to_string(),
             tmpname: tmpname.to_string(),
@@ -221,8 +221,8 @@ impl CDBWriter {
     }
 
     pub fn finish(mut self) -> Result<()> {
-        try!(self.cdb.take().unwrap().finish());
-        try!(fs::rename(&self.tmpname, &self.dstname));
+        self.cdb.take().unwrap().finish()?;
+        fs::rename(&self.tmpname, &self.dstname)?;
         Ok(())
     }
 }

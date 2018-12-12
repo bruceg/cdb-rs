@@ -76,7 +76,7 @@ impl CDB {
 
         while len > 0 {
             let n = min(len, buf.len());
-            try!(self.read(&mut buf[..n], pos));
+            self.read(&mut buf[..n], pos)?;
             if buf[..n] != key[keypos..keypos+n] {
                 return Ok(false);
             }
@@ -171,7 +171,7 @@ impl<'a> CDBValueIter<'a> {
 
     fn read_vec(&self) -> Result<Vec<u8>> {
         let mut result = vec![0; self.dlen as usize];
-        try!(self.cdb.read(&mut result[..], self.dpos));
+        self.cdb.read(&mut result[..], self.dpos)?;
         Ok(result)
     }
 }
