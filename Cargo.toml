@@ -7,6 +7,7 @@ homepage = "https://github.com/bruceg/cdb-rs"
 repository = "https://github.com/bruceg/cdb-rs"
 readme = "README.md"
 license = "Unlicense"
+edition = "2018"
 
 [dependencies]
 filebuffer = "0.4"

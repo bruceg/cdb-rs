@@ -3,8 +3,8 @@ use std::io;
 use std::cmp::min;
 use std::path;
 
-use hash::hash;
-use uint32;
+use crate::hash::hash;
+use crate::uint32;
 
 pub use std::io::Result;
 

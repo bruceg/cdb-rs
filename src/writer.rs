@@ -6,8 +6,8 @@ use std::path;
 use std::string;
 use std::iter;
 
-use hash::hash;
-use uint32;
+use crate::hash::hash;
+use crate::uint32;
 
 pub use std::io::Result;
 
