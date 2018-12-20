@@ -4,10 +4,7 @@ pub fn unpack(data: &[u8]) -> u32 {
     assert!(data.len() >= 4);
     // Use u32::from_bytes when it stabilizes
     // Rust compiles this down to an efficient word copy
-    (data[0] as u32)
-        | ((data[1] as u32) << 8)
-        | ((data[2] as u32) << 16)
-        | ((data[3] as u32) << 24)
+    (data[0] as u32) | ((data[1] as u32) << 8) | ((data[2] as u32) << 16) | ((data[3] as u32) << 24)
 }
 
 pub fn unpack2(buf: &[u8]) -> (u32, u32) {
@@ -17,7 +14,12 @@ pub fn unpack2(buf: &[u8]) -> (u32, u32) {
 fn _pack(src: u32) -> [u8; 4] {
     // Use u32::to_bytes when it stabilizes
     // Rust compiles this down to an efficient word copy
-    [ src as u8, (src >> 8) as u8, (src >> 16) as u8, (src >> 24) as u8 ]
+    [
+        src as u8,
+        (src >> 8) as u8,
+        (src >> 16) as u8,
+        (src >> 24) as u8,
+    ]
 }
 
 pub fn pack(data: &mut [u8], src: u32) {

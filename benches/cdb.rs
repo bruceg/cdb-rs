@@ -10,7 +10,11 @@ fn test_cdb() -> CDB {
 }
 
 fn reader_benchmark(c: &mut Criterion) {
-    c.bench_function("CDB::open", |b| b.iter(|| { test_cdb(); }));
+    c.bench_function("CDB::open", |b| {
+        b.iter(|| {
+            test_cdb();
+        })
+    });
     c.bench_function("CDB::find", |b| {
         let cdb = test_cdb();
         b.iter(|| cdb.find(b"two"))
@@ -25,24 +29,36 @@ fn reader_benchmark(c: &mut Criterion) {
     });
     c.bench_function("CDB::find result loop", |b| {
         let cdb = test_cdb();
-        b.iter(|| for result in cdb.find(b"one") { result.unwrap(); })
+        b.iter(|| {
+            for result in cdb.find(b"one") {
+                result.unwrap();
+            }
+        })
     });
-    c.bench_function("CDB::open + find result loop", |b| b.iter(|| {
-        let cdb = test_cdb();
-        for result in cdb.find(b"one") {
-            result.unwrap();
-        }
-    }));
+    c.bench_function("CDB::open + find result loop", |b| {
+        b.iter(|| {
+            let cdb = test_cdb();
+            for result in cdb.find(b"one") {
+                result.unwrap();
+            }
+        })
+    });
     c.bench_function("CDB::iter result loop", |b| {
         let cdb = test_cdb();
-        b.iter(|| for result in cdb.iter() { result.unwrap(); })
+        b.iter(|| {
+            for result in cdb.iter() {
+                result.unwrap();
+            }
+        })
     });
-    c.bench_function("CDB::open + iter result loop", |b| b.iter(|| {
-        let cdb = test_cdb();
-        for result in cdb.iter() {
-            result.unwrap();
-        }
-    }));
+    c.bench_function("CDB::open + iter result loop", |b| {
+        b.iter(|| {
+            let cdb = test_cdb();
+            for result in cdb.iter() {
+                result.unwrap();
+            }
+        })
+    });
 }
 
 criterion_group!(benches, reader_benchmark);

@@ -1,17 +1,17 @@
+use std::cmp::max;
 use std::fs;
 use std::io;
 use std::io::prelude::*;
-use std::cmp::max;
+use std::iter;
 use std::path;
 use std::string;
-use std::iter;
 
 use crate::hash::hash;
 use crate::uint32;
 
 pub use std::io::Result;
 
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone, Copy, Debug)]
 struct HashPos {
     hash: u32,
     pos: u32,
@@ -48,14 +48,13 @@ pub struct CDBMake {
 }
 
 impl CDBMake {
-
     /// Create a new CDB maker.
     pub fn new(file: fs::File) -> Result<CDBMake> {
         let mut w = io::BufWriter::new(file);
         let buf = [0; 2048];
         w.seek(io::SeekFrom::Start(0))?;
         w.write(&buf)?;
-        Ok(CDBMake{
+        Ok(CDBMake {
             entries: iter::repeat(vec![]).take(256).collect::<Vec<_>>(),
             pos: 2048,
             file: w,
@@ -65,15 +64,17 @@ impl CDBMake {
     fn pos_plus(&mut self, len: u32) -> Result<()> {
         if self.pos + len < len {
             err_toobig()
-        }
-        else {
+        } else {
             self.pos += len;
             Ok(())
         }
     }
 
     fn add_end(&mut self, keylen: u32, datalen: u32, hash: u32) -> Result<()> {
-        self.entries[(hash & 0xff) as usize].push(HashPos{ hash: hash, pos: self.pos });
+        self.entries[(hash & 0xff) as usize].push(HashPos {
+            hash: hash,
+            pos: self.pos,
+        });
         self.pos_plus(8)?;
         self.pos_plus(keylen)?;
         self.pos_plus(datalen)?;
@@ -113,13 +114,13 @@ impl CDBMake {
             return err_toobig();
         }
 
-        let mut table = vec![HashPos{ hash: 0, pos: 0 }; maxsize];
+        let mut table = vec![HashPos { hash: 0, pos: 0 }; maxsize];
 
         let mut header = [0 as u8; 2048];
         for i in 0..256 {
             let len = self.entries[i].len() * 2;
             let j = i * 8;
-            uint32::pack2(&mut header[j..j+8], self.pos, len as u32);
+            uint32::pack2(&mut header[j..j + 8], self.pos, len as u32);
 
             for e in self.entries[i].iter() {
                 let mut wh = (e.hash as usize >> 8) % len;
@@ -136,7 +137,7 @@ impl CDBMake {
                 hp.pack(&mut buf);
                 self.file.write(&buf)?;
                 self.pos_plus(8)?;
-                *hp = HashPos{ hash: 0, pos: 0 };
+                *hp = HashPos { hash: 0, pos: 0 };
             }
         }
 
@@ -175,7 +176,6 @@ pub struct CDBWriter {
 }
 
 impl CDBWriter {
-
     /// Safely create a new CDB file.
     ///
     /// The suffix for the temporary file defaults to `".tmp"`.
@@ -184,7 +184,10 @@ impl CDBWriter {
     }
 
     /// Safely create a new CDB file, using a specific suffix for the temporary file.
-    pub fn with_suffix<P: AsRef<path::Path> + string::ToString>(filename: P, suffix: &str) -> Result<CDBWriter> {
+    pub fn with_suffix<P: AsRef<path::Path> + string::ToString>(
+        filename: P,
+        suffix: &str,
+    ) -> Result<CDBWriter> {
         let mut tmpname = filename.to_string();
         tmpname.push_str(suffix);
         CDBWriter::with_filenames(filename, &tmpname)
@@ -194,8 +197,13 @@ impl CDBWriter {
     ///
     /// Note that the temporary file name must be on the same filesystem
     /// as the destination, or else the final rename will fail.
-    pub fn with_filenames<P: AsRef<path::Path> + string::ToString,
-                          Q: AsRef<path::Path> + string::ToString>(filename: P, tmpname: Q) -> Result<CDBWriter> {
+    pub fn with_filenames<
+        P: AsRef<path::Path> + string::ToString,
+        Q: AsRef<path::Path> + string::ToString,
+    >(
+        filename: P,
+        tmpname: Q,
+    ) -> Result<CDBWriter> {
         let file = fs::File::create(&tmpname)?;
         let cdb = CDBMake::new(file)?;
         Ok(CDBWriter {

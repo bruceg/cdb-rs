@@ -1,6 +1,6 @@
 use filebuffer::FileBuffer;
-use std::io;
 use std::cmp::min;
+use std::io;
 use std::path;
 
 use crate::hash::hash;
@@ -31,7 +31,6 @@ fn err_badfile<T>() -> Result<T> {
 }
 
 impl CDB {
-
     /// Opens the named file and returns the CDB reader.
     ///
     /// # Examples
@@ -45,10 +44,7 @@ impl CDB {
             return err_badfile();
         }
         let size = file.len();
-        Ok(CDB {
-            file,
-            size,
-        })
+        Ok(CDB { file, size })
     }
 
     fn read(&self, buf: &mut [u8], pos: u32) -> Result<usize> {
@@ -57,14 +53,18 @@ impl CDB {
         if pos + len > self.size {
             return err_badfile();
         }
-        buf.copy_from_slice(&self.file[pos .. pos + len]);
+        buf.copy_from_slice(&self.file[pos..pos + len]);
         Ok(len)
     }
 
     fn hash_table(&self, khash: u32) -> (u32, u32, u32) {
         let x = ((khash as usize) & 0xff) << 3;
-        let (hpos, hslots) = uint32::unpack2(&self.file[x..x+8]);
-        let kpos = if hslots > 0 { hpos + (((khash >> 8) % hslots) << 3) } else { 0 };
+        let (hpos, hslots) = uint32::unpack2(&self.file[x..x + 8]);
+        let kpos = if hslots > 0 {
+            hpos + (((khash >> 8) % hslots) << 3)
+        } else {
+            0
+        };
         (hpos, hslots, kpos)
     }
 
@@ -77,7 +77,7 @@ impl CDB {
         while len > 0 {
             let n = min(len, buf.len());
             self.read(&mut buf[..n], pos)?;
-            if buf[..n] != key[keypos..keypos+n] {
+            if buf[..n] != key[keypos..keypos + n] {
                 return Ok(false);
             }
             pos += n as u32;
@@ -179,10 +179,12 @@ impl<'a> CDBValueIter<'a> {
 macro_rules! iter_try {
     ( $e:expr ) => {
         match $e {
-            Err(x) => { return Some(Err(x)); },
-            Ok(y) => y
+            Err(x) => {
+                return Some(Err(x));
+            }
+            Ok(y) => y,
         }
-    }
+    };
 }
 
 impl<'a> Iterator for CDBValueIter<'a> {
@@ -242,20 +244,19 @@ impl<'a> Iterator for CDBKeyValueIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos + 8 >= self.data_end {
             None
-        }
-        else {
-            let (klen, dlen) = uint32::unpack2(&self.cdb.file[self.pos as usize..self.pos as usize + 8]);
+        } else {
+            let (klen, dlen) =
+                uint32::unpack2(&self.cdb.file[self.pos as usize..self.pos as usize + 8]);
             if self.pos + klen + dlen >= self.data_end {
                 Some(err_badfile())
-            }
-            else {
+            } else {
                 let kpos = (self.pos + 8) as usize;
                 let dpos = kpos + klen as usize;
                 let mut key = vec![0; klen as usize];
                 let mut value = vec![0; dlen as usize];
                 // Copied from CDB::read
-                key.copy_from_slice(&self.cdb.file[kpos..kpos+klen as usize]);
-                value.copy_from_slice(&self.cdb.file[dpos..dpos+dlen as usize]);
+                key.copy_from_slice(&self.cdb.file[kpos..kpos + klen as usize]);
+                value.copy_from_slice(&self.cdb.file[dpos..dpos + dlen as usize]);
                 self.pos += 8 + klen + dlen;
                 Some(Ok((key, value)))
             }
