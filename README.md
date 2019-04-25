@@ -2,7 +2,7 @@ cdb
 ====
 
 [![Crate](https://img.shields.io/crates/v/cdb.svg)](https://crates.io/crates/cdb)
-[![Build Status](https://travis-ci.org/bruceg/cdb.svg?branch=master)](https://travis-ci.org/bruceg/cdb)
+[![Build Status](https://travis-ci.org/bruceg/cdb-rs.svg?branch=master)](https://travis-ci.org/bruceg/cdb-rs)
 
 This library provides pure Rust support for reading and writing
 [CDB][cdb] files.  A CDB file is a constant key-value on-disk hash
